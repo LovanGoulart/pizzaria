@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Entrar · Pizzaria Manager</title>
+<title>Entrar · Restaurante Manager</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="auth-body">
 <div class="auth-box">
-  <div class="auth-logo">🍕</div>
-  <h1>Pizzaria Manager</h1>
-  <p class="auth-sub">Entre para gerenciar sua pizzaria</p>
+  <div class="auth-logo">🍽️</div>
+  <h1>Restaurante Manager</h1>
+  <p class="auth-sub">Entre para gerenciar seu restaurante</p>
 
   {% if erro %}<div class="auth-erro">{{ erro }}</div>{% endif %}
 
@@ -27,7 +27,7 @@
   <p class="auth-link">Nao tem conta? <a href="/registro">Cadastre-se</a></p>
 
   <div class="auth-demo">
-    <b>Demo:</b> admin@pizzaria.com / admin123
+    <b>Demo:</b> admin@restaurante.com / admin123
   </div>
 </div>
 </body>
