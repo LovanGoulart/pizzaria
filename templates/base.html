@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Pizzaria Manager{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="logo">🍕 Pizzaria Manager</div>
+  <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+  <nav id="nav">
+    {% if usuario_logado.role in ('admin', 'garcom') %}
+      <a href="/" class="{% if request.path == '/' %}on{% endif %}">🧾 PDV</a>
+    {% endif %}
+    <a href="/pedidos" class="{% if request.path == '/pedidos' %}on{% endif %}">📋 Pedidos</a>
+    {% if usuario_logado.role == 'admin' %}
+      <a href="/produtos" class="{% if request.path == '/produtos' %}on{% endif %}">🍕 Produtos</a>
+      <a href="/categorias" class="{% if request.path == '/categorias' %}on{% endif %}">📂 Categorias</a>
+      <a href="/caixa" class="{% if request.path == '/caixa' %}on{% endif %}">💰 Caixa</a>
+      <a href="/dashboard" class="{% if request.path == '/dashboard' %}on{% endif %}">📊 Dashboard</a>
+      <a href="/usuarios" class="{% if request.path == '/usuarios' %}on{% endif %}">👥 Equipe</a>
+    {% endif %}
+  </nav>
+  {% if usuario_logado %}
+  <div class="user-box">
+    <span class="user-nome">
+      👤 {{ usuario_logado.nome }}
+      <span class="role-badge role-{{ usuario_logado.role }}">{{ usuario_logado.role }}</span>
+    </span>
+    <a href="/logout" class="btn-sair" title="Sair">Sair</a>
+  </div>
+  {% endif %}
+</header>
+<main class="container">
+  {% block content %}{% endblock %}
+</main>
+
+{% if usuario_logado %}
+<!-- Menu rodape (somente mobile). Ordem: Pedidos, PDV, Caixa, Dashboard, Produtos, Categorias, Equipe -->
+<nav class="bottom-nav">
+  <a href="/pedidos" class="{% if request.path == '/pedidos' %}on{% endif %}">
+    <span class="icon">📋</span><span>Pedidos</span>
+  </a>
+  {% if usuario_logado.role in ('admin', 'garcom') %}
+  <a href="/" class="{% if request.path == '/' %}on{% endif %}">
+    <span class="icon">🧾</span><span>PDV</span>
+  </a>
+  {% endif %}
+  {% if usuario_logado.role == 'admin' %}
+  <a href="/caixa" class="{% if request.path == '/caixa' %}on{% endif %}">
+    <span class="icon">💰</span><span>Caixa</span>
+  </a>
+  <a href="/dashboard" class="{% if request.path == '/dashboard' %}on{% endif %}">
+    <span class="icon">📊</span><span>Dash</span>
+  </a>
+  <a href="/produtos" class="{% if request.path == '/produtos' %}on{% endif %}">
+    <span class="icon">🍕</span><span>Produtos</span>
+  </a>
+  <a href="/categorias" class="{% if request.path == '/categorias' %}on{% endif %}">
+    <span class="icon">📂</span><span>Categ.</span>
+  </a>
+  <a href="/usuarios" class="{% if request.path == '/usuarios' %}on{% endif %}">
+    <span class="icon">👥</span><span>Equipe</span>
+  </a>
+  {% endif %}
+</nav>
+{% endif %}
+
+<div id="toast" class="toast"></div>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

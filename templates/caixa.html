@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Caixa · Pizzaria Manager{% endblock %}
+{% block content %}
+<h1>Caixa</h1>
+<p class="sub">Controle de abertura, fechamento e movimentos</p>
+<div id="statusCaixa"></div>
+<div class="row-caixa">
+  <div class="card-caixa" id="cardMovimento" style="display:none">
+    <h3>+ Novo movimento</h3>
+    <form onsubmit="lancarMovimento(event)">
+      <div class="row2">
+        <label>Tipo<select id="m-tipo"><option value="entrada">Entrada</option><option value="saida">Saída</option></select></label>
+        <label>Valor (R$)<input type="number" step="0.01" id="m-valor" required></label>
+      </div>
+      <label>Descrição<input type="text" id="m-desc" placeholder="Ex: Troco, sangria, etc"></label>
+      <button class="btn primary" type="submit">Lançar</button>
+    </form>
+  </div>
+  <div class="card-caixa">
+    <h3>Últimos caixas</h3>
+    <div id="historico"></div>
+  </div>
+</div>
+<div class="table-wrap" id="wrapMovimentos" style="display:none;margin-top:20px">
+  <h3 style="padding:16px 20px 0">Movimentos do caixa atual</h3>
+  <table class="tabela">
+    <thead><tr><th>Hora</th><th>Tipo</th><th>Descrição</th><th>Forma</th><th>Valor</th></tr></thead>
+    <tbody id="tbodyMov"></tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function carregar() {
+  const d = await (await fetch("/api/caixa/atual")).json();
+  const status = document.getElementById("statusCaixa");
+  if (!d.aberto) {
+    status.innerHTML = '<div class="card-caixa" style="text-align:center"><h3>Caixa fechado</h3><p class="muted">Abra o caixa para começar o dia</p><form onsubmit="abrir(event)" style="max-width:300px;margin:16px auto"><input type="number" step="0.01" id="valorInicial" placeholder="Valor inicial (R$)" value="0" required><button class="btn primary" style="margin-top:10px;width:100%">🔓 Abrir caixa</button></form></div>';
+    document.getElementById("cardMovimento").style.display = "none";
+    document.getElementById("wrapMovimentos").style.display = "none";
+  } else {
+    status.innerHTML = '<div class="cards">' +
+      '<div class="card"><div class="card-label">Valor inicial</div><div class="card-value">R$ ' + d.caixa.valor_inicial.toFixed(2) + '</div></div>' +
+      '<div class="card"><div class="card-label">Entradas</div><div class="card-value" style="color:#20a060">+ R$ ' + d.entradas.toFixed(2) + '</div></div>' +
+      '<div class="card"><div class="card-label">Saídas</div><div class="card-value" style="color:#c03030">- R$ ' + d.saidas.toFixed(2) + '</div></div>' +
+      '<div class="card destaque"><div class="card-label">Saldo atual</div><div class="card-value">R$ ' + d.saldo.toFixed(2) + '</div></div></div>' +
+      '<div style="text-align:right;margin-bottom:16px"><button class="btn danger" onclick="fechar()">🔒 Fechar caixa</button></div>';
+    document.getElementById("cardMovimento").style.display = "block";
+    document.getElementById("wrapMovimentos").style.display = "block";
+    const movs = d.movimentos || [];
+    document.getElementById("tbodyMov").innerHTML = movs.length ? movs.map(m =>
+      '<tr><td>' + m.criado_em + '</td><td><span class="tag" style="background:' + (m.tipo === "entrada" ? "#d0f0d0" : "#f0d0d0") + '">' + m.tipo + '</span></td><td>' + (m.descricao || "—") + '</td><td>' + (m.forma_pagamento || "—") + '</td><td><b>R$ ' + m.valor.toFixed(2) + '</b></td></tr>'
+    ).join("") : '<tr><td colspan="5" style="text-align:center;color:#999">Sem movimentos</td></tr>';
+  }
+  const hist = await (await fetch("/api/caixa/historico")).json();
+  document.getElementById("historico").innerHTML = hist.length ? hist.map(h =>
+    '<div class="hist-item"><div><b>' + h.abertura + '</b><br><small class="muted">' + (h.fechamento ? "Fechado: " + h.fechamento : "Em aberto") + '</small></div><div style="text-align:right"><b>R$ ' + (h.valor_final || h.valor_inicial).toFixed(2) + '</b><br><small class="muted">' + h.status + '</small></div></div>'
+  ).join("") : '<p class="muted">Nenhum registro</p>';
+}
+async function abrir(ev) {
+  ev.preventDefault();
+  const r = await fetch("/api/caixa/abrir", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({valor_inicial: +document.getElementById("valorInicial").value})});
+  if (r.ok) { toast("Caixa aberto!"); carregar(); } else toast("Erro", "erro");
+}
+async function fechar() {
+  if (!confirm("Fechar o caixa?")) return;
+  const r = await fetch("/api/caixa/fechar", {method:"POST", headers:{"Content-Type":"application/json"}, body: "{}"});
+  if (r.ok) { toast("Caixa fechado"); carregar(); } else toast("Erro", "erro");
+}
+async function lancarMovimento(ev) {
+  ev.preventDefault();
+  const dados = {tipo: document.getElementById("m-tipo").value, valor: +document.getElementById("m-valor").value, descricao: document.getElementById("m-desc").value};
+  const r = await fetch("/api/caixa/movimento", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(dados)});
+  if (r.ok) { toast("Lançado!"); ev.target.reset(); carregar(); } else toast("Erro", "erro");
+}
+carregar();
+</script>
+{% endblock %}

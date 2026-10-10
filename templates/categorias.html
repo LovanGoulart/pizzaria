@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Categorias · Pizzaria Manager{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Categorias</h1><p class="sub">Organize o cardápio</p></div>
+  <button class="btn primary" onclick="abrirModal()">+ Nova categoria</button>
+</div>
+<div class="table-wrap">
+<table class="tabela">
+  <thead><tr><th>Ícone</th><th>Nome</th><th>Ordem</th><th>Produtos</th><th>Ações</th></tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+<div id="modal" class="modal-bg hidden">
+  <div class="modal">
+    <h2 id="modalTitle">Nova categoria</h2>
+    <form id="formCat" onsubmit="salvar(event)">
+      <input type="hidden" id="f-id">
+      <div class="row2">
+        <label>Ícone<input type="text" id="f-icone" value="🍕" maxlength="4"></label>
+        <label>Ordem<input type="number" id="f-ordem" value="0"></label>
+      </div>
+      <label>Nome<input type="text" id="f-nome" required></label>
+      <div class="modal-btns">
+        <button type="button" class="btn" onclick="fecharModal()">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let cats = [];
+async function carregar() {
+  cats = await (await fetch("/api/categorias")).json();
+  const tb = document.getElementById("tbody");
+  if (cats.length === 0) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:40px">Nenhuma categoria</td></tr>'; return; }
+  tb.innerHTML = cats.map(c =>
+    '<tr>' +
+    '<td style="font-size:22px">' + c.icone + '</td>' +
+    '<td><b>' + c.nome + '</b></td>' +
+    '<td>' + c.ordem + '</td>' +
+    '<td>' + c.total_produtos + '</td>' +
+    '<td class="acoes"><button class="btn small" onclick="editar(' + c.id + ')">✎</button><button class="btn small danger" onclick="apagar(' + c.id + ')">🗑</button></td>' +
+    '</tr>').join("");
+}
+function abrirModal() {
+  document.getElementById("modalTitle").textContent = "Nova categoria";
+  document.getElementById("formCat").reset();
+  document.getElementById("f-id").value = "";
+  document.getElementById("f-icone").value = "🍕";
+  document.getElementById("modal").classList.remove("hidden");
+}
+function editar(id) {
+  const c = cats.find(x => x.id === id);
+  document.getElementById("modalTitle").textContent = "Editar categoria";
+  document.getElementById("f-id").value = c.id;
+  document.getElementById("f-nome").value = c.nome;
+  document.getElementById("f-icone").value = c.icone;
+  document.getElementById("f-ordem").value = c.ordem;
+  document.getElementById("modal").classList.remove("hidden");
+}
+function fecharModal() { document.getElementById("modal").classList.add("hidden"); }
+async function salvar(ev) {
+  ev.preventDefault();
+  const id = document.getElementById("f-id").value;
+  const dados = {nome: document.getElementById("f-nome").value,
+    icone: document.getElementById("f-icone").value,
+    ordem: +document.getElementById("f-ordem").value};
+  const r = await fetch(id ? "/api/categorias/" + id : "/api/categorias", {
+    method: id ? "PUT" : "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(dados)});
+  if (r.ok) { toast("Salvo!"); fecharModal(); carregar(); } else toast("Erro", "erro");
+}
+async function apagar(id) {
+  if (!confirm("Apagar? Vai apagar também os produtos desta categoria!")) return;
+  const r = await fetch("/api/categorias/" + id, {method: "DELETE"});
+  if (r.ok) { toast("Apagada"); carregar(); }
+}
+carregar();
+</script>
+{% endblock %}

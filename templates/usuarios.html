@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Equipe · Pizzaria Manager{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Equipe</h1>
+    <p class="sub">Cadastre garçons e cozinheiros que vão usar o sistema</p>
+  </div>
+  <button class="btn primary" onclick="abrirModal()">+ Novo membro</button>
+</div>
+
+<div class="aviso-info">
+  💡 Cada membro vê apenas as telas permitidas:
+  <b>Garçom</b> cria pedidos e marca como entregue ·
+  <b>Cozinha</b> marca pedidos como em preparo e pronto
+</div>
+
+<div class="table-wrap">
+<table class="tabela">
+  <thead>
+    <tr><th>Nome</th><th>E-mail</th><th>Função</th><th>Cadastro</th><th>Ações</th></tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<div id="modal" class="modal-bg hidden">
+  <div class="modal">
+    <h2 id="modalTitle">Novo membro</h2>
+    <form id="formUser" onsubmit="salvar(event)">
+      <input type="hidden" id="f-id">
+      <label>Nome<input type="text" id="f-nome" required placeholder="Nome completo"></label>
+      <label>E-mail<input type="email" id="f-email" required placeholder="email@exemplo.com"></label>
+      <label id="lbl-senha">Senha<input type="password" id="f-senha" required minlength="4" placeholder="Minimo 4 caracteres"></label>
+      <label>Função
+        <select id="f-role" required>
+          <option value="garcom">🤵 Garçom</option>
+          <option value="cozinha">👨‍🍳 Cozinha</option>
+        </select>
+      </label>
+      <div class="modal-btns">
+        <button type="button" class="btn" onclick="fecharModal()">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let membros = [];
+
+const ROLE_LABEL = { admin: "Admin", garcom: "Garçom", cozinha: "Cozinha" };
+
+async function carregar() {
+  membros = await (await fetch("/api/usuarios")).json();
+  const tb = document.getElementById("tbody");
+  if (membros.length === 0) {
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:40px">Nenhum membro cadastrado ainda. Clique em "+ Novo membro".</td></tr>';
+    return;
+  }
+  tb.innerHTML = membros.map(u =>
+    '<tr>' +
+    '<td><b>' + u.nome + '</b></td>' +
+    '<td>' + u.email + '</td>' +
+    '<td><span class="role-badge role-' + u.role + '">' + ROLE_LABEL[u.role] + '</span></td>' +
+    '<td>' + u.criado_em + '</td>' +
+    '<td class="acoes">' +
+      '<button class="btn small" onclick="editar(' + u.id + ')">✎</button>' +
+      '<button class="btn small danger" onclick="apagar(' + u.id + ')">🗑</button>' +
+    '</td></tr>'
+  ).join("");
+}
+
+function abrirModal() {
+  document.getElementById("modalTitle").textContent = "Novo membro";
+  document.getElementById("formUser").reset();
+  document.getElementById("f-id").value = "";
+  document.getElementById("lbl-senha").style.display = "block";
+  document.getElementById("f-senha").required = true;
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+function editar(id) {
+  const u = membros.find(x => x.id === id);
+  document.getElementById("modalTitle").textContent = "Editar membro";
+  document.getElementById("f-id").value = u.id;
+  document.getElementById("f-nome").value = u.nome;
+  document.getElementById("f-email").value = u.email;
+  document.getElementById("f-role").value = u.role;
+  // Senha opcional na edicao
+  const lbl = document.getElementById("lbl-senha");
+  lbl.style.display = "block";
+  lbl.childNodes[0].nodeValue = "Nova senha (deixe vazio para manter)";
+  document.getElementById("f-senha").required = false;
+  document.getElementById("f-senha").value = "";
+  document.getElementById("modal").classList.remove("hidden");
+}
+
+function fecharModal() {
+  document.getElementById("modal").classList.add("hidden");
+  document.getElementById("lbl-senha").childNodes[0].nodeValue = "Senha";
+  document.getElementById("f-senha").required = true;
+}
+
+async function salvar(ev) {
+  ev.preventDefault();
+  const id = document.getElementById("f-id").value;
+  const dados = {
+    nome: document.getElementById("f-nome").value,
+    email: document.getElementById("f-email").value,
+    role: document.getElementById("f-role").value
+  };
+  const senha = document.getElementById("f-senha").value;
+  if (id) {
+    if (senha) dados.nova_senha = senha;
+  } else {
+    dados.senha = senha;
+  }
+
+  const url = id ? "/api/usuarios/" + id : "/api/usuarios";
+  const r = await fetch(url, {
+    method: id ? "PUT" : "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(dados)
+  });
+  if (r.ok) { toast("Salvo!"); fecharModal(); carregar(); }
+  else { const e = await r.json(); toast(e.erro || "Erro", "erro"); }
+}
+
+async function apagar(id) {
+  if (!confirm("Remover este membro da equipe?")) return;
+  const r = await fetch("/api/usuarios/" + id, {method: "DELETE"});
+  if (r.ok) { toast("Removido"); carregar(); }
+  else toast("Erro", "erro");
+}
+
+carregar();
+</script>
+{% endblock %}

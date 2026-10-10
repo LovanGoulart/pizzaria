@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · Pizzaria Manager{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+<p class="sub">Resumo do dia</p>
+<div class="cards" id="cards"></div>
+<div class="card" style="margin-top:20px">
+  <h3>🏆 Top produtos vendidos hoje</h3>
+  <div id="topProdutos" style="margin-top:12px"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function carregar() {
+  const d = await (await fetch("/api/dashboard")).json();
+  document.getElementById("cards").innerHTML =
+    '<div class="card destaque"><div class="card-label">Faturamento hoje</div><div class="card-value">R$ ' + d.faturamento.toFixed(2) + '</div></div>' +
+    '<div class="card"><div class="card-label">Pedidos entregues</div><div class="card-value">' + d.pedidos_entregues + '</div></div>' +
+    '<div class="card"><div class="card-label">Em andamento</div><div class="card-value">' + d.pedidos_abertos + '</div></div>' +
+    '<div class="card"><div class="card-label">Ticket médio</div><div class="card-value">R$ ' + d.ticket_medio.toFixed(2) + '</div></div>';
+  const top = document.getElementById("topProdutos");
+  if (d.top_produtos.length === 0) top.innerHTML = '<p class="muted">Nenhuma venda registrada hoje</p>';
+  else top.innerHTML = d.top_produtos.map((p, i) =>
+    '<div class="top-item"><span class="top-rank">' + (i + 1) + '</span><span class="top-nome">' + p.nome + '</span><span class="top-qtd">' + p.qtd + 'x</span></div>').join("");
+}
+carregar();
+setInterval(carregar, 30000);
+</script>
+{% endblock %}

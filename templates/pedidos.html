@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Pedidos · Pizzaria Manager{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>
+      {% if usuario_logado.role == 'cozinha' %}👨‍🍳 Fila da Cozinha
+      {% else %}Pedidos{% endif %}
+    </h1>
+    <p class="sub">
+      {% if usuario_logado.role == 'cozinha' %}
+        Marque os pedidos como <b>Em preparo</b> e depois <b>Pronto</b>
+      {% elif usuario_logado.role == 'garcom' %}
+        Crie pedidos no PDV e marque como entregues quando servidos
+      {% else %}
+        Gerencie todos os pedidos e registre os pagamentos
+      {% endif %}
+    </p>
+  </div>
+  <div class="filtros">
+    <button class="chip on" onclick="filtrar('', this)">Todos</button>
+    <button class="chip" onclick="filtrar('aberto', this)">Abertos</button>
+    <button class="chip" onclick="filtrar('em_preparo', this)">Em preparo</button>
+    <button class="chip" onclick="filtrar('pronto', this)">Prontos</button>
+    <button class="chip" onclick="filtrar('entregue', this)">Entregues</button>
+    {% if usuario_logado.role == 'admin' %}
+    <button class="chip" onclick="filtrar('nao_pagos', this)">💰 Não pagos</button>
+    {% endif %}
+  </div>
+</div>
+<div class="pedidos-grid" id="pedidosGrid"></div>
+
+<div id="modal" class="modal-bg hidden">
+  <div class="modal">
+    <h2 id="modalTitle">Pedido</h2>
+    <div id="modalBody"></div>
+    <div class="modal-btns"><button class="btn" onclick="fecharModal()">Fechar</button></div>
+  </div>
+</div>
+
+{% if usuario_logado.role == 'admin' %}
+<div id="modalPag" class="modal-bg hidden">
+  <div class="modal">
+    <h2 id="pagTitulo">Pagamento</h2>
+    <p class="muted" id="pagInfo"></p>
+    <label style="display:block;font-size:12px;font-weight:700;color:#5a3d1e;margin-bottom:12px">Forma de pagamento
+      <select id="pagForma" style="width:100%;padding:9px 12px;margin-top:4px;border:1px solid #d0bfa0;border-radius:9px;background:#fff;font-family:inherit;font-size:13.5px">
+        <option value="dinheiro">💵 Dinheiro</option>
+        <option value="debito">💳 Débito</option>
+        <option value="credito">💳 Crédito</option>
+        <option value="pix">📱 PIX</option>
+        <option value="vale">🎫 Vale</option>
+      </select>
+    </label>
+    <div class="modal-btns">
+      <button class="btn" onclick="fecharModalPag()">Cancelar</button>
+      <button class="btn primary" onclick="confirmarPag()">✓ Confirmar pagamento</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+const ROLE = "{{ usuario_logado.role }}";
+let filtroStatus = "";
+const STATUS_LABEL = {aberto:"Aberto", em_preparo:"Em preparo", pronto:"Pronto", entregue:"Entregue", cancelado:"Cancelado"};
+const STATUS_COR = {aberto:"#e0a040", em_preparo:"#3080c0", pronto:"#20a060", entregue:"#606060", cancelado:"#c03030"};
+
+async function carregar() {
+  const url = filtroStatus ? "/api/pedidos?status=" + filtroStatus : "/api/pedidos?hoje=1";
+  const pedidos = await (await fetch(url)).json();
+  const grid = document.getElementById("pedidosGrid");
+  if (pedidos.length === 0) { grid.innerHTML = '<div class="vazio-box">Nenhum pedido encontrado</div>'; return; }
+  grid.innerHTML = pedidos.map(p => {
+    const cor = STATUS_COR[p.status] || "#999";
+    let h = '<div class="pedido-card" style="border-top-color:' + cor + '">';
+    h += '<div class="pc-head"><b>#' + p.numero + '</b><span class="pc-status" style="background:' + cor + '">' + STATUS_LABEL[p.status] + '</span></div>';
+
+    // Destaque para o numero da mesa (bem visivel para os funcionarios)
+    if (p.tipo === "mesa" && p.mesa)
+      h += '<div class="mesa-badge">🍽️ MESA ' + p.mesa + '</div>';
+
+    h += '<div class="pc-cliente">' + (p.cliente || "Sem nome");
+    if (p.tipo === "entrega") h += " · Entrega";
+    if (p.tipo === "balcao") h += " · Balcão";
+    h += '</div><div class="pc-itens">' + p.qtd_itens + ' item(ns)</div>';
+
+    // Situacao de pagamento
+    h += '<div class="pc-pagamento">' +
+         (p.pago ? '<span class="pago-tag">✅ PAGO</span>'
+                 : '<span class="nao-pago-tag">⏳ NÃO PAGO</span>') + '</div>';
+
+    h += '<div class="pc-total">R$ ' + p.total.toFixed(2).replace(".", ",") + '</div>';
+    h += '<div class="pc-acoes"><button class="btn small" onclick="verDetalhes(' + p.id + ')">Detalhes</button>';
+    if ((ROLE === "admin" || ROLE === "cozinha") && p.status === "aberto")
+      h += '<button class="btn small primary" onclick="mudarStatus(' + p.id + ',\'em_preparo\')">Preparar</button>';
+    if ((ROLE === "admin" || ROLE === "cozinha") && p.status === "em_preparo")
+      h += '<button class="btn small primary" onclick="mudarStatus(' + p.id + ',\'pronto\')">Pronto</button>';
+    if ((ROLE === "admin" || ROLE === "garcom") && p.status === "pronto")
+      h += '<button class="btn small primary" onclick="mudarStatus(' + p.id + ',\'entregue\')">Entregar</button>';
+    if (ROLE === "admin" && !p.pago && p.status !== "cancelado")
+      h += '<button class="btn small" style="background:#158040;color:#fff;border-color:#158040" onclick="pagar(' + p.id + ',' + p.numero + ',' + p.total + ')">💰 Pagar</button>';
+    h += '</div></div>';
+    return h;
+  }).join("");
+}
+
+function filtrar(status, btn) {
+  filtroStatus = status;
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("on"));
+  btn.classList.add("on"); carregar();
+}
+async function mudarStatus(id, status) {
+  const r = await fetch("/api/pedidos/" + id + "/status", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({status})});
+  if (r.ok) { toast("Status atualizado"); carregar(); }
+  else { const e = await r.json(); toast(e.erro || "Erro", "erro"); }
+}
+
+// ================= PAGAMENTO (admin) =================
+let pedidoPagamento = null;
+function pagar(id, numero, total) {
+  pedidoPagamento = id;
+  document.getElementById("pagInfo").innerHTML = "Pedido <b>#" + numero + "</b> · Total <b>R$ " + total.toFixed(2).replace(".", ",") + "</b><br>O valor será lançado automaticamente no caixa aberto.";
+  document.getElementById("modalPag").classList.remove("hidden");
+}
+function fecharModalPag() {
+  pedidoPagamento = null;
+  document.getElementById("modalPag").classList.add("hidden");
+}
+async function confirmarPag() {
+  if (!pedidoPagamento) return;
+  const r = await fetch("/api/pedidos/" + pedidoPagamento + "/pagar", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({forma_pagamento: document.getElementById("pagForma").value})
+  });
+  fecharModalPag();
+  if (r.ok) { toast("Pagamento registrado no caixa!"); carregar(); }
+  else { const e = await r.json(); toast(e.erro || "Erro", "erro"); }
+}
+
+async function verDetalhes(id) {
+  const p = await (await fetch("/api/pedidos/" + id)).json();
+  let h = '<p><b>Cliente:</b> ' + (p.cliente || "—") + '</p>';
+  h += '<p><b>Tipo:</b> ' + p.tipo + (p.mesa ? " · <b>Mesa " + p.mesa + '</b>' : "") + '</p>';
+  if (p.endereco) h += '<p><b>Endereço:</b> ' + p.endereco + '</p>';
+  h += '<p><b>Criado em:</b> ' + p.criado_em + '</p>';
+  h += '<p><b>Pagamento:</b> ' + (p.pago ? '<span class="pago-tag">✅ PAGO' + (p.forma_pagamento ? " · " + p.forma_pagamento : "") + '</span>' : '<span class="nao-pago-tag">⏳ NÃO PAGO</span>') + '</p>';
+  h += '<hr><h4>Itens</h4><ul class="lista-itens">';
+  for (const it of p.itens) h += '<li><b>' + it.quantidade + 'x</b> ' + it.produto_nome + ' <span class="muted">R$ ' + it.subtotal.toFixed(2) + '</span></li>';
+  h += '</ul><p style="text-align:right;font-size:18px;margin-top:12px"><b>Total: R$ ' + p.total.toFixed(2) + '</b></p>';
+  document.getElementById("modalTitle").textContent = "Pedido #" + p.numero;
+  document.getElementById("modalBody").innerHTML = h;
+  document.getElementById("modal").classList.remove("hidden");
+}
+function fecharModal() { document.getElementById("modal").classList.add("hidden"); }
+carregar();
+setInterval(carregar, 15000);
+</script>
+{% endblock %}

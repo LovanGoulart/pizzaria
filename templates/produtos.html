@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Produtos · Pizzaria Manager{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Produtos</h1><p class="sub">Gerencie o cardápio</p></div>
+  <button class="btn primary" onclick="abrirModal()">+ Novo produto</button>
+</div>
+<div class="table-wrap">
+<table class="tabela">
+  <thead><tr><th>Produto</th><th>Categoria</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+<div id="modal" class="modal-bg hidden">
+  <div class="modal">
+    <h2 id="modalTitle">Novo produto</h2>
+    <form id="formProduto" onsubmit="salvar(event)">
+      <input type="hidden" id="f-id">
+      <label>Nome<input type="text" id="f-nome" required></label>
+      <label>Descrição<input type="text" id="f-descricao"></label>
+      <div class="row2">
+        <label>Preço (R$)<input type="number" step="0.01" id="f-preco" required></label>
+        <label>Categoria<select id="f-categoria" required></select></label>
+      </div>
+      <label class="check-lbl"><input type="checkbox" id="f-ativo" checked> Produto ativo</label>
+      <div class="modal-btns">
+        <button type="button" class="btn" onclick="fecharModal()">Cancelar</button>
+        <button type="submit" class="btn primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+let categorias = [], produtos = [];
+
+async function carregar() {
+  categorias = await (await fetch("/api/categorias")).json();
+  produtos = await (await fetch("/api/produtos")).json();
+  const selCat = document.getElementById("f-categoria");
+  selCat.innerHTML = categorias.map(c => '<option value="' + c.id + '">' + c.icone + " " + c.nome + '</option>').join("");
+  const tb = document.getElementById("tbody");
+  if (produtos.length === 0) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;padding:40px">Nenhum produto</td></tr>'; return; }
+  tb.innerHTML = produtos.map(p =>
+    '<tr>' +
+    '<td><b>' + p.nome + '</b><br><small class="muted">' + (p.descricao || "") + '</small></td>' +
+    '<td><span class="tag">' + p.categoria_icone + " " + p.categoria_nome + '</span></td>' +
+    '<td>R$ ' + p.preco.toFixed(2).replace(".", ",") + '</td>' +
+    '<td>' + (p.ativo ? "✅ Ativo" : "❌ Inativo") + '</td>' +
+    '<td class="acoes"><button class="btn small" onclick="editar(' + p.id + ')">✎</button><button class="btn small danger" onclick="apagar(' + p.id + ')">🗑</button></td>' +
+    '</tr>').join("");
+}
+
+function abrirModal() {
+  document.getElementById("modalTitle").textContent = "Novo produto";
+  document.getElementById("formProduto").reset();
+  document.getElementById("f-id").value = "";
+  document.getElementById("f-ativo").checked = true;
+  document.getElementById("modal").classList.remove("hidden");
+}
+function editar(id) {
+  const p = produtos.find(x => x.id === id);
+  document.getElementById("modalTitle").textContent = "Editar produto";
+  document.getElementById("f-id").value = p.id;
+  document.getElementById("f-nome").value = p.nome;
+  document.getElementById("f-descricao").value = p.descricao || "";
+  document.getElementById("f-preco").value = p.preco;
+  document.getElementById("f-categoria").value = p.categoria_id;
+  document.getElementById("f-ativo").checked = p.ativo;
+  document.getElementById("modal").classList.remove("hidden");
+}
+function fecharModal() { document.getElementById("modal").classList.add("hidden"); }
+
+async function salvar(ev) {
+  ev.preventDefault();
+  const id = document.getElementById("f-id").value;
+  const dados = {nome: document.getElementById("f-nome").value,
+    descricao: document.getElementById("f-descricao").value,
+    preco: +document.getElementById("f-preco").value,
+    categoria_id: +document.getElementById("f-categoria").value,
+    ativo: document.getElementById("f-ativo").checked};
+  const r = await fetch(id ? "/api/produtos/" + id : "/api/produtos", {
+    method: id ? "PUT" : "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(dados)});
+  if (r.ok) { toast("Salvo!"); fecharModal(); carregar(); } else toast("Erro", "erro");
+}
+async function apagar(id) {
+  if (!confirm("Apagar este produto?")) return;
+  const r = await fetch("/api/produtos/" + id, {method: "DELETE"});
+  if (r.ok) { toast("Apagado"); carregar(); }
+}
+carregar();
+</script>
+{% endblock %}

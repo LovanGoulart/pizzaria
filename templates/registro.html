@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Criar conta · Pizzaria Manager</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-body">
+<div class="auth-box">
+  <div class="auth-logo">🍕</div>
+  <h1>Criar conta</h1>
+  <p class="auth-sub">Sua pizzaria, seus dados, isolados de outros usuarios</p>
+
+  {% if erro %}<div class="auth-erro">{{ erro }}</div>{% endif %}
+
+  <form method="POST" class="auth-form">
+    <label>Nome
+      <input type="text" name="nome" required placeholder="Seu nome ou nome da pizzaria">
+    </label>
+    <label>E-mail
+      <input type="email" name="email" required placeholder="seu@email.com">
+    </label>
+    <label>Senha
+      <input type="password" name="senha" required minlength="4" placeholder="Minimo 4 caracteres">
+    </label>
+    <button type="submit" class="btn-primary">Criar conta</button>
+  </form>
+
+  <p class="auth-link">Ja tem conta? <a href="/login">Entrar</a></p>
+  <div class="auth-demo">Ao criar a conta, o cardapio padrao e criado automaticamente.</div>
+</div>
+</body>
+</html>

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}PDV · Pizzaria Manager{% endblock %}
+{% block content %}
+<div class="pdv-wrap">
+  <aside class="pdv-cats">
+    <h3>Categorias</h3>
+    <button class="cat-btn active" onclick="filtrarCat('', this)"><span>🍽️</span> Todas</button>
+    <div id="listaCats"></div>
+  </aside>
+
+  <section class="pdv-produtos">
+    <div class="pdv-busca">
+      <input type="text" id="busca" placeholder="🔍 Buscar produto..." oninput="renderProdutos()">
+    </div>
+    <div class="produtos-grid" id="produtosGrid"></div>
+  </section>
+
+  <aside class="pdv-carrinho">
+    <h3>🧾 Pedido <span id="pedidoNum">#novo</span></h3>
+    <div class="carrinho-config">
+      <select id="tipoPedido" onchange="toggleEntrega()">
+        <option value="mesa">Mesa</option>
+        <option value="balcao">Balcão</option>
+        <option value="entrega">Entrega</option>
+      </select>
+      <input type="text" id="mesa" placeholder="Mesa" style="max-width:70px">
+      <input type="text" id="cliente" placeholder="Cliente (opcional)">
+      <input type="text" id="endereco" placeholder="Endereço de entrega" style="display:none">
+      <input type="number" id="taxaEntrega" placeholder="Taxa entrega R$" step="0.01" value="0" style="display:none" oninput="atualizarTotal()">
+    </div>
+    <div id="carrinhoItens" class="carrinho-itens"><div class="vazio">Nenhum item</div></div>
+    <div class="carrinho-total">
+      <div class="linha"><span>Subtotal</span><b id="subtotal">R$ 0,00</b></div>
+      <div class="linha"><span>Taxa entrega</span><b id="taxa">R$ 0,00</b></div>
+      <div class="linha total"><span>TOTAL</span><b id="total">R$ 0,00</b></div>
+    </div>
+    <div class="carrinho-acoes">
+      <select id="formaPagamento">
+        <option value="">Forma pagamento</option>
+        <option value="dinheiro">💵 Dinheiro</option>
+        <option value="debito">💳 Débito</option>
+        <option value="credito">💳 Crédito</option>
+        <option value="pix">📱 PIX</option>
+        <option value="vale">🎫 Vale</option>
+      </select>
+      <textarea id="obs" placeholder="Observação do pedido..." rows="2"></textarea>
+      <button class="btn-finalizar" onclick="finalizar()">✓ FINALIZAR PEDIDO</button>
+      <button class="btn-limpar" onclick="limpar()">Limpar carrinho</button>
+    </div>
+  </aside>
+</div>
+
+<!-- Modal: pergunta mesa e cliente ao clicar em um produto -->
+<div id="modalProd" class="modal-bg hidden">
+  <div class="modal">
+    <h2 id="modalProdNome">Produto</h2>
+    <p class="muted" style="margin-bottom:14px">Informe a mesa e o cliente antes de adicionar o item.</p>
+    <form onsubmit="event.preventDefault(); confirmarProd();">
+      <div class="row2">
+        <label>Mesa *
+          <input type="text" id="mMesa" placeholder="Ex: 5" required autocomplete="off">
+        </label>
+        <label>Cliente
+          <input type="text" id="mCliente" placeholder="Nome (opcional)" autocomplete="off">
+        </label>
+      </div>
+      <div class="modal-btns">
+        <button type="button" class="btn" onclick="fecharModalProd()">Cancelar</button>
+        <button type="submit" class="btn primary">+ Adicionar ao pedido</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/pdv.js') }}"></script>{% endblock %}
