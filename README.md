@@ -1,2 +1,2 @@
 # pizzaria
-sistema de caixa, cozinha e garçom de restaurante
+Sistema de restaurante com usuário administrador (caixa), cozinha e garçom.
